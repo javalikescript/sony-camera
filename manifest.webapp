@@ -1,0 +1,25 @@
+{
+  "name": "Sony Camera",
+  "description": "Sony Camera - Camera Remote API by Sony",
+  "launch_path": "/app.html",
+  "icons": {
+    "60": "/images/lens_60.png",
+    "128": "/images/lens_128.png",
+    "512": "/images/lens_512.png"
+  },
+  "version": "1.0",
+  "developer": {
+    "name": "spyl",
+    "url": "https://github.com/javalikescript/sony-camera"
+  },
+  "default_locale": "en",
+  "permissions": {
+    "systemXHR": {
+      "description" : "Talk to the camera"
+    },
+    "tcp-socket" : {
+      "description" : "Live view"
+    }
+  },
+  "type": "privileged"
+}

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no" />
+  <title>Sony Camera</title>
+  <link rel="stylesheet" href="bb/style/action_menu.css">
+  <link rel="stylesheet" href="bb/style/buttons.css">
+  <link rel="stylesheet" href="bb/style/confirm.css">
+  <!--
+  <link rel="stylesheet" href="bb/style/edit_mode.css">
+  -->
+  <link rel="stylesheet" href="bb/style/headers.css">
+  <link rel="stylesheet" href="bb/style/input_areas.css">
+  <link rel="stylesheet" href="bb/style/status.css">
+  <!--
+  -->
+  <link rel="stylesheet" href="bb/style/switches.css">
+  <link rel="stylesheet" href="bb/style/drawer.css">
+  <link rel="stylesheet" href="bb/style/lists.css">
+  <link rel="stylesheet" href="bb/style/progress_activity.css">
+  <!--
+  <link rel="stylesheet" href="bb/style/scrolling.css">
+  <link rel="stylesheet" href="bb/style/seekbars.css">
+  -->
+  <!--
+  <link rel="stylesheet" href="bb/style/tabs.css">
+  <link rel="stylesheet" href="bb/style/toolbars.css">
+  -->
+  <link rel="stylesheet" href="bb/icons/styles/action_icons.css">
+  <!--
+  <link rel="stylesheet" href="bb/icons/styles/media_icons.css">
+  <link rel="stylesheet" href="bb/icons/styles/comms_icons.css">
+  <link rel="stylesheet" href="bb/icons/styles/settings_icons.css">
+  -->
+  <link rel="stylesheet" href="bb/transitions.css">
+  <link rel="stylesheet" href="bb/util.css">
+  <!--
+  -->
+  <!-- Additional markup to make Building Blocks kind of cross browser -->
+  <!--
+  <link rel="stylesheet" href="bb/cross_browser.css">
+  -->
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <section id="index" data-position="current">
+    <section data-type="sidebar">
+      <header>
+        <menu type="toolbar">
+          <a href="#">Done</a>
+        </menu>
+        <h1>Menu</h1>
+      </header>
+      <nav>
+        <ul>
+          <li><a id="btn-pref" href="#">Preferences</a></li>
+          <li><a id="btn-close" href="#">Close</a></li>
+          <li><a id="btn-help" href="#">Help</a></li>
+        </ul>
+      </nav>
+    </section>
+    <section id="drawer" role="region" style="background-color: black; ">
+      <header class="fixed" style="background-color: transparent;">
+        <a href="#"><span class="icon icon-menu">hide sidebar</span></a>
+        <a href="#drawer"><span class="icon icon-menu">show sidebar</span></a>
+        <h1>Sony Remote Camera <em>beta</em></h1>
+      </header>
+      <article class="content scrollable header">
+        <!-- background-color: rgba(0, 0, 0, 0.3);  -->
+        <div style="text-align: center; position: absolute; bottom: 0px; right: 0px; left: 0px; height: 4.5rem; z-index: 50; overflow: hidden;">
+          <button id="btn-rec-mode" style="width: auto; display: none; ">Record Mode</button>
+          <button id="btn-live-view" style="width: auto; display: none; ">Live View</button>
+          <button id="btn-shoot" style="width: auto; display: inline; ">Shoot</button>
+          <button id="btn-zoom-in" style="width: auto; display: inline; ">+</button>
+          <button id="btn-zoom-out" style="width: auto; display: inline; ">-</button>
+          <button id="btn-test-live-view" style="width: auto; display: none; ">Test Live View</button>
+        </div>
+        <img id="shoot-image" style="position: absolute; bottom: 0px; right: 0px; left: 0px; height: 4rem; margin: 0.5rem; z-index: 25; overflow: hidden;"></img>
+      </article>
+      <img id="liveview-image" src="images/lens_512.png" style="position: absolute; top: 0px; left: 0px; width: 100%; z-index: -50; overflow: hidden;"></img>
+      <div id="focusCircle" style="z-index: -40; display: none; "></div>
+    </section>
+  </section>
+
+  <section role="region" id="pref" data-position="right">
+    <header class="fixed">
+      <a id="back" href="#"><span class="icon icon-back">back</span></a>
+      <h1>Preferences</h1>
+    </header>
+    <article class="content scrollable header">
+      <header><h2>Camera</h2></header>
+      <form>
+        <label class="pack-switch" style="width: 100%;">
+          <input id="cb-polling" type="checkbox">
+          <span style="line-height: 5rem; font-size: 1.9rem;">Polling</span>
+        </label>
+        <label class="pack-switch" style="width: 100%;">
+          <input id="cb-rec-mode" type="checkbox">
+          <span style="line-height: 5rem; font-size: 1.9rem;">Record Mode</span>
+        </label>
+        <label class="pack-switch" style="width: 100%;">
+          <input id="cb-live-view" type="checkbox">
+          <span style="line-height: 5rem; font-size: 1.9rem;">Live View</span>
+        </label>
+        <label class="pack-switch" style="width: 100%;">
+          <input id="cb-touch-af" type="checkbox">
+          <span style="line-height: 5rem; font-size: 1.9rem;">Touch AF</span>
+        </label>
+      </form>
+      <header><h2>Device API URL</h2></header>
+      <form>
+        <p>
+          <input id="url" type="text" placeholder="URL" required>
+          <button type="reset">Clear</button>
+        </p>
+      </form>
+      <header><h2>Debug</h2></header>
+      <form>
+        <label class="pack-switch" style="width: 100%;">
+          <input id="cb-test-mode" type="checkbox">
+          <span style="line-height: 5rem; font-size: 1.9rem;">Test Mode</span>
+        </label>
+      </form>
+      <button id="confirm">Ok</button>
+    </article>
+  </section>
+
+  <section role="region" id="help" data-position="right">
+    <header class="fixed">
+      <a id="back" href="#"><span class="icon icon-back">back</span></a>
+      <h1>Help</h1>
+    </header>
+    <article class="content scrollable header">
+      <header><h2>Overview</h2></header>
+      <p>This application enables to control your Sony camera wirelessly.</p>
+      <p>This application uses the the Camera Remote API provided by Sony.</p>
+      <header><h2>Usage</h2></header>
+      <p>To use this application you must start the "Smart Remote Control" application on your camera
+      then connect your device via Wi-Fi to the Camera which acts as an access point.</p>
+      <p>You have to setup the endpoint URL of the API.
+      Because Firefox OS doesn't support UDP nor SSDP (Simple Service Discovery Protocol) to discover the camera.</p>
+      <p>Well known URLs are:
+      <ul>
+      <li>http://192.168.122.1:8080/sony</li>
+      <li>http://10.0.0.1:8080/sony</li>
+      </ul>
+      </p>
+      <p>Before shooting or starting the live view you must enter in Record Mode</p>
+      <header><h2>Disclamer</h2></header>
+      <p>This is not a Sony application.</p>
+      <p>This application is provided as is and may damage your device and your camera.</p>
+    </article>
+  </section>
+
+  <!--
+  <script type="text/javascript" defer src="bb/js/action_menu.js"></script>
+  <script type="text/javascript" defer src="bb/js/seekbars.js"></script>
+  -->
+  <script type="text/javascript" defer src="bb/js/status.js"></script>
+  <script type="text/javascript" defer src="js/base64.js"></script>
+  <script type="text/javascript" defer src="js/util.js"></script>
+  <script type="text/javascript" defer src="js/app.js"></script>
+</body>
+</html>
