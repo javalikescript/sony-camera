@@ -7,7 +7,7 @@
     "128": "/images/lens_128.png",
     "512": "/images/lens_512.png"
   },
-  "version": "1.0",
+  "version": "1.1",
   "developer": {
     "name": "spyl",
     "url": "https://github.com/javalikescript/sony-camera"
@@ -19,6 +19,9 @@
     },
     "tcp-socket" : {
       "description" : "Live view"
+    },
+    "udp-socket" : {
+      "description" : "Device discovery"
     }
   },
   "type": "privileged"

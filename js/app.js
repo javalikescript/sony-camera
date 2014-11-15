@@ -5,8 +5,12 @@
             url: 'http://192.168.122.1:8080/sony',
             autoStart: false,
             touchAF: true,
+            recMode: true,
+            liveView: true,
+            polling: false,
             testMode: false
     };
+    var discoveryAvailable = (typeof UDPSocket === 'function');
 
     if (document.readyState === 'complete') {
         onPageLoaded();
@@ -18,24 +22,46 @@
     }
     window.addEventListener('unload', onPageUnload);
     
+    var log = function(msg) {
+        if (config.testMode) {
+            console.log(msg);
+        }
+    };
     var logResponse = function(res) {
-        console.log('Response:');
-        console.log(res.getJSON());
+        log('Response:');
+        log(res.getJSON());
     };
 
-    var crSend = function(content, callback, context) {
+    var httpRequest = function(url, method, headers, content, callback, context) {
+        if (typeof method !== 'string') {
+            method = 'GET';
+        }
+        if (typeof headers !== 'object') {
+            headers = {};
+        }
+        if (typeof context === 'undefined') {
+            context = result;
+        }
+        if (typeof callback !== 'function') {
+            callback = function() {};
+        }
         var xhr = new XMLHttpRequest({mozSystem: true});
-        var url = config.url;
-        url += '/camera';
-        xhr.open('POST', url, true);
-        xhr.setRequestHeader('Accept', 'application/json, text/javascript, text/plain');
-        xhr.setRequestHeader('Content-type', 'application/json; charset=UTF-8');
+        xhr.open(method, url, true);
+        for (var name in headers) {
+            xhr.setRequestHeader(name, headers[name]);
+        }
         var result = {
                 status: xhr.status,
                 xhr: xhr,
                 getJSON: function() {
                     if (xhr.status === 200) { //  || xhr.status === 0
                         return JSON.parse(xhr.responseText);
+                    }
+                    throw 'XMLHttpRequest failed, status: ' + xhr.status;
+                },
+                getXML: function() {
+                    if (xhr.status === 200) { //  || xhr.status === 0
+                        return xhr.responseXML;
                     }
                     throw 'XMLHttpRequest failed, status: ' + xhr.status;
                 },
@@ -53,13 +79,8 @@
                     null;
                 }
         };
-        if (typeof callback !== 'function') {
-            callback = function() {};
-        }
-        if (typeof context === 'undefined') {
-            context = result;
-        }
         xhr.onreadystatechange = function () {
+            log('onreadystatechange readyState: ' + xhr.readyState);
             if (xhr.readyState !== 4) {
                 return;// Not completed
             }
@@ -68,7 +89,16 @@
         /*xhr.onerror = function () {
             callback.call(context, result);
         };*/
-        xhr.send(JSON.stringify(content, null, ''));
+        xhr.send(content);
+    };
+
+    var crSend = function(content, callback, context) {
+        var url = config.url + '/camera';
+        httpRequest(url, 'POST', {
+            'Accept': 'application/json, text/javascript, text/plain',
+            'Content-type': 'application/json; charset=UTF-8'
+        }, JSON.stringify(content, null, ''), callback, context)
+        
     };
 
     config = fetchFromStore('config', config);
@@ -96,10 +126,10 @@
     };
 
     var onEvent = function(result) {
-        console.log('getEvent', result);
+        log('getEvent', result);
     };
     var pollEvent = function() {
-        console.log('pollEvent');
+        log('pollEvent');
         crSend({
             "method": "getEvent",
             "params": [true],
@@ -131,7 +161,7 @@
     };
 
     var togglePolling = function () {
-        console.log('toggle polling');
+        log('toggle polling');
         if (eventPolling) {
             stopPolling();
         } else {
@@ -143,19 +173,26 @@
         if (recModeStarted) {
             return;
         }
-        console.log('startRecMode');
+        log('startRecMode');
+        progressStart();
         crSend({
             "method": "startRecMode",
             "params": [],
             "id": 1,
             "version": "1.0"
         }, function(response) {
-            recModeStarted = response.getResult() != null;
+            try {
+                progressStop();
+                recModeStarted = response.getResult() != null;
+            } catch(e) {
+                log('error: ' + e);
+            }
             if (recModeStarted) {
-                notify('Record mode started');
-                if (initializing) {
-                    initializing = false;
-                    startLiveview();
+                onRecMode();
+            } else {
+                notify('Failed to start record mode');
+                if (discoveryAvailable) {
+                    discover();
                 }
             }
         });
@@ -165,7 +202,7 @@
         if (! recModeStarted) {
             return;
         }
-        console.log('stopRecMode');
+        log('stopRecMode');
         recModeStarted = false;
         crSend({
             "method": "stopRecMode",
@@ -178,7 +215,7 @@
     };
     
     var toggleRecMode = function () {
-        console.log('toggle rec mode');
+        log('toggle rec mode');
         if (recModeStarted) {
             stopRecMode();
         } else {
@@ -191,7 +228,7 @@
             liveViewSocket.close();
             liveViewSocket = null;
         }
-        console.log('openLiveView(' + url + ')');
+        log('openLiveView(' + url + ')');
         var i = url.indexOf('://') + 3;
         var j = url.indexOf('/', i);
         var fileURL = url.substring(j);
@@ -199,30 +236,30 @@
         var hostURL = url.substring(i, k);
         var portURL = parseInt(url.substring(k + 1, j));
 
-        //console.log('hostURL: ' + hostURL + ', portURL: ' + portURL + ', fileURL: ' + fileURL);
+        log('hostURL: ' + hostURL + ', portURL: ' + portURL + ', fileURL: ' + fileURL);
         liveViewSocket = navigator.mozTCPSocket.open(hostURL, portURL, {"binaryType": "arraybuffer"});
         liveViewSocket.onerror = function (event) {
-            console.log('liveViewSocket.onerror "' + event.data + '"');
+            log('liveViewSocket.onerror "' + event.data + '"');
             liveViewSocket = null;
         };
         liveViewSocket.onopen = function (event) {
         try {
-            console.log('liveViewSocket.onopen()');
+            log('liveViewSocket.onopen()');
             var liveViewRequest = buildHttpRequest('GET', fileURL, '', {
               "Accept": "application/json, text/javascript, text/plain",
               "Content-type": "application/json; charset=UTF-8"
             });
             var barray = strToUTF8Arr(liveViewRequest);
-            //console.log('sending ' + barray.byteLength + ' bytes...');
+            log('sending ' + barray.byteLength + ' bytes...');
             /*
              * https://bugzilla.mozilla.org/show_bug.cgi?id=1057557
              * Improve error message when passing a Uint*Array to mozTCPSocket.send instead of an ArrayBuffer
              */
             //var result = liveViewSocket.send(barray, 0, barray.byteLength);
             var result = liveViewSocket.send(barray.buffer, 0, barray.byteLength);
-            //console.log('...sent ' + result + ' buffered ' + liveViewSocket.bufferedAmount);
+            log('...sent ' + result + ' buffered ' + liveViewSocket.bufferedAmount);
         } catch (e) {
-            console.log('uncaught "' + e + '"');
+            log('uncaught "' + e + '"');
             liveViewSocket = null;
         }
         };
@@ -238,9 +275,9 @@
                 syncTime = st;
             }
             syncDelta = st - syncTime;
-            //console.log('onImage(), #' + sequenceNum + ', syncDelta: ' + syncDelta);
+            log('onImage(), #' + sequenceNum + ', syncDelta: ' + syncDelta);
             if ((time - lasttime > 300) && (syncDelta < 1000)) {
-                //console.log('displaying...');
+                log('displaying...');
                 // data:image/jpeg;base64,/9j/4A...
                 var liveViewImageBase64 = 'data:image/jpeg;base64,' + base64EncArr(barray);
                 //requestAnimationFrame(function() {
@@ -256,11 +293,11 @@
         }
         
         liveViewSocket.ondata = function (event) {
-            //console.log('ondata(' + event.data.byteLength + ')');
+            log('ondata(' + event.data.byteLength + ')');
             try {
                 processor.process(new Uint8Array(event.data));
             } catch (e) {
-                console.log('uncaught "' + e + '"');
+                log('uncaught "' + e + '"');
                 liveViewSocket.close();
                 liveViewSocket = null;
                 throw e;
@@ -273,7 +310,7 @@
             liveViewSocket.close();
             liveViewSocket = null;
         }
-        console.log('live view');
+        log('live view');
         crSend({
             "method": "startLiveview",
             "params": [],
@@ -281,7 +318,7 @@
             "version": "1.0"
         }, function(response) {
             var liveViewURL = response.getResult()[0];
-            console.log('liveViewURL "' + liveViewURL + '"');
+            log('liveViewURL "' + liveViewURL + '"');
             openLiveView(liveViewURL);
         });
     };
@@ -290,7 +327,7 @@
         if (liveViewSocket == null) {
             return;
         }
-        console.log('stopLiveview');
+        log('stopLiveview');
         liveViewSocket.close();
         liveViewSocket = null;
         crSend({
@@ -304,7 +341,7 @@
     };
 
     var toggleLiveview = function () {
-        console.log('toggle live view');
+        log('toggle live view');
         if (liveViewSocket == null) {
             startLiveview();
         } else {
@@ -313,7 +350,7 @@
     };
 
     var shoot = function(event) {
-        console.log('shooting');
+        log('shooting');
         event.stopPropagation();
         crSend({
             "method": "actTakePicture",
@@ -330,7 +367,7 @@
         if (zoomAction == null) {
             return;
         }
-        console.log('zoomStop() ' + zoomAction);
+        log('zoomStop() ' + zoomAction);
         var previousZoomAction = zoomAction;
         zoomAction = null;
         crSend({
@@ -341,7 +378,7 @@
         });
     };
     var zoomStart = function(action) {
-        console.log('zoomStart(' + action + ')');
+        log('zoomStart(' + action + ')');
         zoomStop();
         zoomAction = action;
         crSend({
@@ -352,39 +389,41 @@
         });
     };
     var zoomCancel = function(event) {
-        //console.log('zoomCancel');
+        log('zoomCancel');
         event.stopPropagation();
         zoomStop();
     };
     var zoomIn = function(event) {
-        //console.log('zoomIn');
+        log('zoomIn');
         event.stopPropagation();
         zoomStart("in");
     };
     var zoomOut = function(event) {
-        //console.log('zoomOut');
+        log('zoomOut');
         event.stopPropagation();
         zoomStart("out");
     };
     
     var cancelFocus = function() {
-        console.log('cancelFocus()');
-        crSend({
-            "method": "cancelTouchAFPosition",
-            "params": [],
-            "id": 1,
-            "version": "1.0"
-        });
+        log('cancelFocus()');
+        if (recModeStarted && config.touchAF) {
+            crSend({
+                "method": "cancelTouchAFPosition",
+                "params": [],
+                "id": 1,
+                "version": "1.0"
+            });
+        }
     };
     
     var hideFocusCircle = function() {
         focusCircle.style.display = 'none';
     };
     var offset = document.querySelector('#drawer header').offsetHeight;
-    console.log('offset: ' + offset);
+    log('offset: ' + offset);
     
     var onFocus = function(event) {
-        console.log('onFocus()');
+        log('onFocus()');
         var c = {
             x : event.layerX,
             y : event.layerY + offset
@@ -393,8 +432,8 @@
             Math.round(c.x * 1000 / liveViewImage.width) / 10,
             Math.round(c.y * 1000 / liveViewImage.height) / 10
         ];
-        console.log(point);
-        if (! config.touchAF) {
+        log(point);
+        if (! (recModeStarted && config.touchAF)) {
             return;
         }
         var radius = 32;
@@ -414,24 +453,177 @@
             hideFocusCircle();
             if (! response.getResult()[1].AFResult) {
                 notify('Failure to AF');
+                // TODO need cancel?
             }
         });
     };
 
-    var onPageLoaded = function() {
-        console.log('initializing...');
-        initializing = true;
-        //startPolling();
+    var parseMessage = function(value) {
+        log('parseMessage("' + value + '")');
+        var obj = {};
+        var lines = value.split('\r\n');
+        for (var n = 0; n < lines.length; n++) {
+            var line = lines[n];
+            var i = line.indexOf(':');
+            if (i > 0) {
+                obj[line.substring(0, i)] = line.substring(i + 1);
+            }
+        }
+        return obj;
+    };
+
+    var onDiscoveryFailure = function(msg) {
+        progressStop();
+        notify('Fail to discover URL: ' + msg);
+    };
+
+    var onDiscoveryLocation = function(location) {
+        log('onDiscoveryLocation(' + location + ')');
+        httpRequest(location, 'GET', {
+            'Accept': 'text/xml'
+        }, null, function(response) {
+            log('...onDiscoveryLocation()');
+            var xml = response.getXML();
+            log(xml);
+            var url = null;
+            var namespace = 'urn:schemas-sony-com:av';
+            var services = xml.getElementsByTagNameNS(namespace, 'X_ScalarWebAPI_Service');
+            log('services.length: ' + services.length);
+            for (var i = 0; i < services.length; i++) {
+                var service = services[i];
+                var serviceType = service.getElementsByTagNameNS(namespace, 'X_ScalarWebAPI_ServiceType')[0].textContent;
+                var actionListURL = service.getElementsByTagNameNS(namespace, 'X_ScalarWebAPI_ActionList_URL')[0].textContent;
+                if (serviceType == 'camera') {
+                    url = actionListURL;
+                    break;
+                }
+            }
+            if (url !== null) {
+                log(url);
+                config.url = url;
+                saveConfig();
+                notify('URL discovered');
+                document.getElementById('pref').querySelector('#url').value = config.url;
+            } else {
+                onDiscoveryFailure('bad device description');
+            }
+        })
+    };
+
+    var discover = function(event) {
+        log('discover()');
+        progressStart();
+        try {
+            /*
+             * See https://bugzilla.mozilla.org/show_bug.cgi?id=745283
+             * and https://bugzilla.mozilla.org/attachment.cgi?id=8478762&action=diff
+             */
+            var discoverySocket = new UDPSocket();
+            if (! discoverySocket) {
+                throw 'failed to open discoverySocket';
+            }
+            //socket.joinMulticastGroup('224.0.0.255'); socket.leaveMulticastGroup('224.0.0.255');
+            log('discoverySocket created, readyState is ' + discoverySocket.readyState);
+
+            var onDiscoveryMessage = function (msg) {
+                log('onDiscoveryMessage(' + msg.data + ') ' + msg.remotePort + ', ' + discoverySocket.localPort);
+                
+                var barray = new Uint8Array(msg.data);
+                log('barray.length: ' + barray.length);
+                //var recvData = String.fromCharCode.apply(null, barray);
+                var recvData = UTF8ArrToStr(barray);
+                var obj = parseMessage(recvData);
+                log(obj);
+                log('USN "' + obj['USN'] + '"');
+                if ('LOCATION' in obj) {
+                    discoverySocket.removeEventListener('message', onDiscoveryMessage);
+                    closeDiscovery();
+                    onDiscoveryLocation(obj['LOCATION']);
+                }
+            };
+            var closeDiscovery = function () {
+                log('closeDiscovery()');
+                if (discoverySocket != null) {
+                    try {
+                        discoverySocket.close();
+                    } finally {
+                        discoverySocket = null;
+                    }
+                }
+            };
+            var onDiscoveryError = function () {
+                log('onDiscoveryError()');
+                closeDiscovery();
+                onDiscoveryFailure('cannot open socket');
+            };
+            var sendDiscoveryRequest = function () {
+                log('discoverySocket opened, readyState is ' + discoverySocket.readyState);
+                var address = '239.255.255.250';
+                var port = 1900;
+                // address = '192.168.0.11'; port = 9876;
+                var discoveryRequest = buildHttpRequest('M-SEARCH', '*', '', {
+                    HOST: address + ':' + port,
+                    MAN: '"ssdp:discover"',
+                    MX: 1,
+                    ST: 'urn:schemas-sony-com:service:ScalarWebAPI:1'
+                }, '1.1');
+                log('discoverySocket.send("' + discoveryRequest + '", ' + address + ', ' + port + ')');
+                discoverySocket.send(discoveryRequest, address, port);
+            };
+            
+            discoverySocket.addEventListener('message', onDiscoveryMessage);
+            discoverySocket.opened.then(sendDiscoveryRequest, onDiscoveryError);
+            
+            window.setTimeout(function() {
+                log("Timeout reached. Closing the discoverySocket");
+                if (discoverySocket != null) {
+                    onDiscoveryFailure('timeout');
+                }
+                closeDiscovery();
+            }, 6000);
+        } catch (e) {
+            log("Got an exception " + e);
+            log(e);
+            onDiscoveryFailure('error ' + e);
+        }		
+    };
+
+    var onRecMode = function() {
+        notify('Record mode started');
+        btnShoot.style.display = 'inline';
+        btnZoomIn.style.display = 'inline';
+        btnZoomOut.style.display = 'inline';
+        if (config.liveView != (liveViewSocket != null)) {
+            toggleLiveview();
+        }
+        if (config.polling != eventPolling) {
+            togglePolling();
+        }
+    };
+
+    var startAll = function() {
+        log('startAll()');
         startRecMode();
     };
 
-    var onPageUnload = function() {
-        console.log('unloading...');
-        //saveConfig();
+    var onPageLoaded = function() {
+        log('onPageLoaded()');
+        if (config.autoStart) {
+            startAll();
+        }
+    };
+
+    var stopAll = function() {
+        log('stopAll()');
         cancelFocus();
         stopRecMode();
         stopLiveview();
         stopPolling();
+    };
+
+    var onPageUnload = function() {
+        log('onPageUnload()');
+        stopAll();
     };
 
     initializeSection({
@@ -439,25 +631,21 @@
         buttonId: 'btn-pref',
         open: function() {
             this.element.querySelector('#url').value = config.url;
-            this.element.querySelector('#cb-live-view').checked = (liveViewSocket != null);
-            this.element.querySelector('#cb-rec-mode').checked = recModeStarted;
-            this.element.querySelector('#cb-polling').checked = eventPolling;
+            this.element.querySelector('#cb-auto-start').checked = config.autoStart;
+            this.element.querySelector('#cb-live-view').checked = config.liveView;
+            this.element.querySelector('#cb-rec-mode').checked = config.recMode;
+            this.element.querySelector('#cb-polling').checked = config.polling;
             this.element.querySelector('#cb-touch-af').checked = config.touchAF;
             this.element.querySelector('#cb-test-mode').checked = config.testMode;
         },
         confirm: function() {
             config.url = this.element.querySelector('#url').value;
+            config.autoStart = this.element.querySelector('#cb-auto-start').checked;
             config.touchAF = this.element.querySelector('#cb-touch-af').checked;
             config.testMode = this.element.querySelector('#cb-test-mode').checked;
-            if (this.element.querySelector('#cb-rec-mode').checked != recModeStarted) {
-                toggleRecMode();
-            }
-            if (this.element.querySelector('#cb-live-view').checked != (liveViewSocket != null)) {
-                toggleLiveview();
-            }
-            if (this.element.querySelector('#cb-polling').checked != eventPolling) {
-                togglePolling();
-            }
+            config.recMode = this.element.querySelector('#cb-rec-mode').checked;
+            config.liveView = this.element.querySelector('#cb-live-view').checked;
+            config.polling = this.element.querySelector('#cb-polling').checked;
             saveConfig();
             refresh();
         },
@@ -470,31 +658,40 @@
     var btnRecMode = document.getElementById('btn-rec-mode');
     var btnLiveView = document.getElementById('btn-live-view');
     var btnTestLiveView = document.getElementById('btn-test-live-view');
+    var btnTestLiveLocation = document.getElementById('btn-test-location');
     var btnShoot = document.getElementById('btn-shoot');
     var btnZoomIn = document.getElementById('btn-zoom-in');
     var btnZoomOut = document.getElementById('btn-zoom-out');
     var shootImage = document.getElementById("shoot-image");
     var liveViewImage = document.getElementById("liveview-image");
     var focusCircle = document.getElementById("focusCircle");
+    var btnDiscover = document.getElementById('btn-discover');
+    var progressMain = document.getElementById("progress-main");
     
+    var progressStop = function() {
+        progressMain.style.display = 'none';
+    };
+    var progressStart = function() {
+        progressMain.style.display = 'block';
+    };
     var close = function() {
-        console.log('closing...');
+        log('closing...');
         onPageUnload();
         window.close();
     };
     var refresh = function() {
-        console.log('refreshing...');
+        log('refreshing...');
         if (config.testMode) {
             btnTestLiveView.style.display = 'inline';
-            btnTestLiveView.addEventListener('click', function () {
-                console.log('direct live view');
-                openLiveView('http://localhost:8080/liveview/liveviewstream');
-            });
+            btnTestLiveLocation.style.display = 'inline';
         } else {
             btnTestLiveView.style.display = 'none';
+            btnTestLiveLocation.style.display = 'none';
         }
     };
 
+    document.getElementById('btn-start').addEventListener('click', startAll);
+    document.getElementById('btn-stop').addEventListener('click', stopAll);
     document.getElementById('btn-close').addEventListener('click', close);
     btnRecMode.addEventListener('click', toggleRecMode);
     btnLiveView.addEventListener('click', toggleLiveview);
@@ -506,5 +703,22 @@
     btnZoomOut.addEventListener('touchstart', zoomOut);
     btnZoomOut.addEventListener('touchend', zoomCancel);
     document.querySelector('#drawer article').addEventListener('click', onFocus);
+    
+    btnTestLiveLocation.addEventListener('click', function() {
+        //onDiscoveryLocation('http://192.168.122.1:61000/scalarwebapi_dd.xml');
+        onDiscoveryLocation('http://localhost:8080/www/scalarwebapi_dd.xml');
+    });
+    btnTestLiveView.addEventListener('click', function () {
+        log('direct live view');
+        openLiveView('http://localhost:8080/liveview/liveviewstream');
+    });
 
+    if (discoveryAvailable) {
+        btnDiscover.addEventListener('click', discover);
+    } else {
+        btnDiscover.style.display = 'none';
+    }
+    refresh();
+    progressStop(); // app is successfully loaded
+    
 })();

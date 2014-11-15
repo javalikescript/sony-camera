@@ -54,6 +54,8 @@
       </header>
       <nav>
         <ul>
+          <li><a id="btn-start" href="#">Start Record Mode</a></li>
+          <li><a id="btn-stop" href="#">Stop Record Mode</a></li>
           <li><a id="btn-pref" href="#">Preferences</a></li>
           <li><a id="btn-close" href="#">Close</a></li>
           <li><a id="btn-help" href="#">Help</a></li>
@@ -67,13 +69,14 @@
         <h1>Sony Remote Camera <em>beta</em></h1>
       </header>
       <article class="content scrollable header">
+        <progress id="progress-main" class="pack-activity" value="0" max="100"></progress>
         <!-- background-color: rgba(0, 0, 0, 0.3);  -->
         <div style="text-align: center; position: absolute; bottom: 0px; right: 0px; left: 0px; height: 4.5rem; z-index: 50; overflow: hidden;">
           <button id="btn-rec-mode" style="width: auto; display: none; ">Record Mode</button>
           <button id="btn-live-view" style="width: auto; display: none; ">Live View</button>
-          <button id="btn-shoot" style="width: auto; display: inline; ">Shoot</button>
-          <button id="btn-zoom-in" style="width: auto; display: inline; ">+</button>
-          <button id="btn-zoom-out" style="width: auto; display: inline; ">-</button>
+          <button id="btn-shoot" style="width: auto; display: none; ">Shoot</button>
+          <button id="btn-zoom-in" style="width: auto; display: none; ">+</button>
+          <button id="btn-zoom-out" style="width: auto; display: none; ">-</button>
           <button id="btn-test-live-view" style="width: auto; display: none; ">Test Live View</button>
         </div>
         <img id="shoot-image" style="position: absolute; bottom: 0px; right: 0px; left: 0px; height: 4rem; margin: 0.5rem; z-index: 25; overflow: hidden;"></img>
@@ -89,13 +92,21 @@
       <h1>Preferences</h1>
     </header>
     <article class="content scrollable header">
+      <header><h2>Device API URL</h2></header>
+      <form>
+        <p>
+          <input id="url" type="text" placeholder="URL" required>
+          <button type="reset">Clear</button>
+        </p>
+		<button id="btn-discover">Discover</button>
+      </form>
       <header><h2>Camera</h2></header>
       <form>
         <label class="pack-switch" style="width: 100%;">
-          <input id="cb-polling" type="checkbox">
-          <span style="line-height: 5rem; font-size: 1.9rem;">Polling</span>
+          <input id="cb-auto-start" type="checkbox">
+          <span style="line-height: 5rem; font-size: 1.9rem;">Auto Start</span>
         </label>
-        <label class="pack-switch" style="width: 100%;">
+        <label class="pack-switch" style="width: 100%; display: none;">
           <input id="cb-rec-mode" type="checkbox">
           <span style="line-height: 5rem; font-size: 1.9rem;">Record Mode</span>
         </label>
@@ -103,17 +114,14 @@
           <input id="cb-live-view" type="checkbox">
           <span style="line-height: 5rem; font-size: 1.9rem;">Live View</span>
         </label>
+        <label class="pack-switch" style="width: 100%; display: none; ">
+          <input id="cb-polling" type="checkbox">
+          <span style="line-height: 5rem; font-size: 1.9rem;">Polling</span>
+        </label>
         <label class="pack-switch" style="width: 100%;">
           <input id="cb-touch-af" type="checkbox">
           <span style="line-height: 5rem; font-size: 1.9rem;">Touch AF</span>
         </label>
-      </form>
-      <header><h2>Device API URL</h2></header>
-      <form>
-        <p>
-          <input id="url" type="text" placeholder="URL" required>
-          <button type="reset">Clear</button>
-        </p>
       </form>
       <header><h2>Debug</h2></header>
       <form>
@@ -121,6 +129,7 @@
           <input id="cb-test-mode" type="checkbox">
           <span style="line-height: 5rem; font-size: 1.9rem;">Test Mode</span>
         </label>
+        <button id="btn-test-location" style="display: none; ">Test Location</button>
       </form>
       <button id="confirm">Ok</button>
     </article>
@@ -133,23 +142,49 @@
     </header>
     <article class="content scrollable header">
       <header><h2>Overview</h2></header>
-      <p>This application enables to control your Sony camera wirelessly.</p>
-      <p>This application uses the the Camera Remote API provided by Sony.</p>
-      <header><h2>Usage</h2></header>
-      <p>To use this application you must start the "Smart Remote Control" application on your camera
-      then connect your device via Wi-Fi to the Camera which acts as an access point.</p>
-      <p>You have to setup the endpoint URL of the API.
-      Because Firefox OS doesn't support UDP nor SSDP (Simple Service Discovery Protocol) to discover the camera.</p>
-      <p>Well known URLs are:
-      <ul>
-      <li>http://192.168.122.1:8080/sony</li>
-      <li>http://10.0.0.1:8080/sony</li>
-      </ul>
-      </p>
-      <p>Before shooting or starting the live view you must enter in Record Mode</p>
-      <header><h2>Disclamer</h2></header>
-      <p>This is not a Sony application.</p>
-      <p>This application is provided as is and may damage your device and your camera.</p>
+        <p><b>Sony Camera</b> - Camera Remote API by Sony<br />
+        This application enables you to control your Sony camera wirelessly from your smartphone.
+        </p>
+        <p><b>Usage</b><br />
+        To use this application you must start the "Smart Remote Control" application on your camera then connect your smartphone via Wi-Fi to the camera which acts as an access point.
+        Once the Wi-Fi setup is done, you could start the Sony Camera application on your smartphone.
+        The startup sequence will automatically initialize the record mode and the live view.
+        You may have to setup the endpoint URL of the API in the application.
+        </p>
+        <p><b>Features</b><br />
+        The application contains the following features:
+        <ul>
+        <li>Shoot (the photos are only available on the camera)</li>
+        <li>Live view</li>
+        <li>Touch to focus</li>
+        <li>Zoom in/out</li>
+        </ul>
+        </p>
+        <p><b>URIs</b><br />
+        Well known URIs are:
+        <ul>
+        <li>http://192.168.122.1:8080/sony</li>
+        <li>http://10.0.0.1:8080/sony</li>
+        </ul>
+        </p>
+        <p><b>Disclaimer</b><br />
+        This is not a Sony application. This application is provided as is and may damage your smartphone and your camera.
+        </p>
+        <p><b>Notes</b><br />
+        This application uses the Camera Remote API provided by Sony.
+        This application has been tested on the Flame and the Sony Alpha 6000 (ILCE-6000).
+        </p>
+        <p><b>Issues</b><br />
+        Please use the <a href="https://github.com/javalikescript/sony-camera">github</a> repository to create issues if necessary.
+        </p>
+        <p><b>Camera Remote API by Sony</b><br />
+        See <a href="https://developer.sony.com/downloads/camera-file/sony-camera-remote-api-beta-sdk/">developer.sony.com</a>
+        </p>
+        <p><b>Cameras</b><br />
+        The following is the camera list supporting the Camera Remote API:
+        NEX-5R NEX-6 NEX-5T ILCE-7 ILCE-7R ILCE-5000 DSC-HX400V DSC-HX60 DSC-HX60V DSC-HX400 ILCE-6000 DSC-RX100M3 ILCE-7S ILCE-5100
+        See the Smart Remote Control application on <a href="https://www.playmemoriescameraapps.com">www.playmemoriescameraapps.com</a> for more information
+        </p>
     </article>
   </section>
 
@@ -161,5 +196,6 @@
   <script type="text/javascript" defer src="js/base64.js"></script>
   <script type="text/javascript" defer src="js/util.js"></script>
   <script type="text/javascript" defer src="js/app.js"></script>
+
 </body>
 </html>

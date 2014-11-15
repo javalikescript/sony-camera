@@ -254,18 +254,25 @@ var initializeSelect = function(options) {
     return section;
 };
 
-var buildHttpRequest = function(method, path, content, header) {
+var buildHttpRequest = function(method, path, content, header, version) {
     var body = '';
     if (typeof content === 'string') {
         body = content;
     } else if (typeof content === 'object') {
         body = JSON.stringify(content, null, '');
+    } else {
+        body = '';
     }
-    var buffer = method + ' ' + path + ' HTTP/1.0\r\n';
     if (typeof header === 'undefined') {
         header = {};
     }
-    header['Content-Length'] = '' + body.length;
+    if (typeof version === 'undefined') {
+        version = '1.0';
+    }
+    var buffer = method + ' ' + path + ' HTTP/' + version + '\r\n';
+    if (body.length > 0) {
+        header['Content-Length'] = '' + body.length;
+    }
     for (var key in header) {
         buffer += key + ': ' + header[key] + '\r\n';
     }
