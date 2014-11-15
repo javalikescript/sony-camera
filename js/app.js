@@ -47,6 +47,7 @@
         }
         var xhr = new XMLHttpRequest({mozSystem: true});
         xhr.open(method, url, true);
+        xhr.timeout = 6000;
         for (var name in headers) {
             xhr.setRequestHeader(name, headers[name]);
         }
@@ -503,6 +504,7 @@
                 config.url = url;
                 saveConfig();
                 notify('URL discovered');
+                progressStop();
                 document.getElementById('pref').querySelector('#url').value = config.url;
             } else {
                 onDiscoveryFailure('bad device description');
